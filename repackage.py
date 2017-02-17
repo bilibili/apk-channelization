@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import getopt, sys, os, zipfile, shutil, traceback, struct, signingapks
+import getopt, sys, os, zipfile, shutil, traceback, struct, signingapks, updatetime
 
 class options:
     channels = []
@@ -127,6 +127,9 @@ def repackage(argv):
     os.system('unzip -q '+apkfile+' -d '+temp)
     # delete signing info
     shutil.rmtree(os.path.join(temp, 'META-INF'))
+
+    # update time
+    updatetime.update_file_time(temp)
 
     temp_manifest = os.path.join(temp,_ANDROID_MANIFEST_XML)
     with open(temp_manifest, 'rb') as source:
