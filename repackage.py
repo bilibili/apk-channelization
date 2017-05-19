@@ -144,6 +144,7 @@ def repackage(argv):
         apkfiles.append(apkfile)
 
     shutil.rmtree(temp)
+    shutil.rmtree(os.path.join(out, 'raw'))
     signingapks.apkfiles[:] = apkfiles
     signingapks.sign_apks()
 
@@ -162,12 +163,22 @@ def package_channel_apk(raw_axml_data, channel, raw_filename, out, temp):
     with open(temp_manifest, 'wb') as f:
         #print 'writing channel %s to AndroidManifest.xml' %channel
         f.write(cloned_buffer)
+    temp_raw = os.path.join(temp, 'res/raw')
+    if os.path.exists(temp_raw):
+    	shutil.move(temp_raw, out)
     tempzip_name = os.path.join(out, newapk_name)
     tempzip = tempzip_name+'.zip'
     if os.path.exists(tempzip):
        os.remove(tempzip)
     #print 'creating channel archive', tempzip
     shutil.make_archive(tempzip_name, 'zip', temp)
+    out_raw = os.path.join(out, 'raw')
+    mZipFile = zipfile.ZipFile(tempzip, "a")
+    for file in os.listdir(out_raw):
+		full_path = os.path.join(out_raw, file);
+		if os.path.isfile(full_path):
+			mZipFile.write(full_path, "res\\raw\\" + file, zipfile.ZIP_STORED )
+    mZipFile.close()
     os.rename(tempzip, newapk)
     #print 'renamed to ', newapk
     return newapk
