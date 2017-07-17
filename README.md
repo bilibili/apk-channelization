@@ -42,31 +42,42 @@ ccc
 3. 签名之前进行`zipalign`  
 ```./repackage.py -f channels -o out --zipalignexe=$ANDROID_SDK/build-tools/23.0.1/zipalign --keystore=android.key --keypass=android --storepass=android --keyalias=debug source.apk```
 
-4. 与android gradle构建工具(1.3.0)一起使用：
+4. 与android gradle构建工具(已兼容2.1以上gradle plugins)一起使用：
 在app的build.gradle中添加task如`releaseAllChannels`：
 ```groovy
 afterEvaluate {
-    android.applicationVariants.all { variant ->
-        def output = variant.outputs.get(0).outputFile as File
-        if ("release".equals(variant.name) && variant.signingConfig != null) {
-            def task = tasks.findByName("zipalign${variant.name.capitalize()}")
-            def zipalignExe = task?.zipAlignExe
-            def repackageTask = tasks.create(name: "releaseAllChannels",
-                    description: "Build all channel apks",
-                    group: "build", type: Exec) {
-                commandLine 'python', rootProject.file("repackage.py").absolutePath,
-                        '-f', rootProject.file('channels').absolutePath,
-                        '-o', builderOutput.absolutePath,
-                        "--keystore=${variant.signingConfig.storeFile}",
-                        "--keypass=${variant.signingConfig.keyPassword}",
-                        "--storepass=${variant.signingConfig.storePassword}",
-                        "--keyalias=${variant.signingConfig.keyAlias}",
-                        "--zipalignexe=${zipalignExe}",
-                        output.absolutePath
+        android.applicationVariants.all { variant ->
+            def rootDir = project.rootDir
+            def androidJarPath
+            def localProperties = new File(rootDir, "local.properties")
+            if (localProperties.exists()) {
+                Properties properties = new Properties()
+                localProperties.withInputStream { instr ->
+                    properties.load(instr)
+                }
+                def sdkDir = properties.getProperty('sdk.dir')
+                androidJarPath = sdkDir + "/build-tools/" + android.buildToolsVersion + "/zipalign"
+                print androidJarPath + "\n"
             }
-            repackageTask.dependsOn variant.assemble
+            def output = variant.outputs.get(0).outputFile as File
+            if ("release".equals(variant.name) && variant.signingConfig != null) {
+                def repackageTask = tasks.create(name: "releaseAllChannels",
+                        description: "Build all channel apks",
+                        group: "build", type: Exec) {
+                    commandLine 'python', rootProject.file("repackage.py").absolutePath,
+                            '-f', rootProject.file('channels').absolutePath,
+                            '-o', rootProject.file('out').absolutePath,
+                            "--keystore=${variant.signingConfig.storeFile}",
+                            "--keypass=${variant.signingConfig.keyPassword}",
+                            "--storepass=${variant.signingConfig.storePassword}",
+                            "--keyalias=${variant.signingConfig.keyAlias}",
+                            "--zipalignexe=${androidJarPath}",
+                            output.absolutePath
+                }
+                repackageTask.dependsOn variant.assemble
+            }
         }
-}
+    }
 ```
 执行task `releaseAllChannels` 即可以直接从源码编译并输出渠道包到`build`目录
 
